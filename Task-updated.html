@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow — Task Manager</title>
+
+  <!-- =====================================================
+       STYLES
+       ===================================================== -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f4f6fb;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --accent:    #6c63ff;
+      --accent-h:  #574fd6;
+      --accent-lt: #ede9fe;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --danger:    #ef4444;
+      --danger-h:  #dc2626;
+      --success:   #22c55e;
+      --warn:      #f59e0b;
+      --info:      #3b82f6;
+      --radius:    12px;
+      --shadow:    0 2px 12px rgba(0,0,0,.07);
+      --transition: .2s ease;
+    }
+    body.dark {
+      --bg:        #0f172a;
+      --surface:   #1e293b;
+      --border:    #334155;
+      --accent:    #818cf8;
+      --accent-h:  #6366f1;
+      --accent-lt: #1e1b4b;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --danger:    #f87171;
+      --danger-h:  #ef4444;
+      --success:   #4ade80;
+      --warn:      #fbbf24;
+      --info:      #60a5fa;
+      --shadow:    0 2px 12px rgba(0,0,0,.35);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 700px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+    .logo { font-size: 1.5rem; font-weight: 700; color: var(--accent); letter-spacing: -.5px; }
+    .logo span { color: var(--text); }
+
+    #darkToggle {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 99px; padding: .4rem .9rem; cursor: pointer;
+      font-size: .85rem; color: var(--muted);
+      transition: background var(--transition), color var(--transition);
+    }
+    #darkToggle:hover { background: var(--accent-lt); color: var(--accent); }
+
+    /* ── Stats ── */
+    .stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 80px; background: var(--surface);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: .75rem 1rem; text-align: center; box-shadow: var(--shadow);
+      transition: background var(--transition);
+    }
+    .stat-card .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); line-height: 1; }
+    .stat-card .lbl { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+
+    /* ── Input Card ── */
+    .input-card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+      box-shadow: var(--shadow); margin-bottom: 1.25rem;
+      transition: background var(--transition);
+    }
+
+    /* Row 1 */
+    .input-row-main { display: flex; gap: .75rem; margin-bottom: .75rem; }
+    .input-row-main input {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: .65rem .9rem; font-size: 1rem; background: var(--bg);
+      color: var(--text); outline: none; transition: border-color var(--transition);
+    }
+    .input-row-main input:focus { border-color: var(--accent); }
+
+    #addBtn {
+      background: var(--accent); color: #fff; border: none; border-radius: 8px;
+      padding: .65rem 1.25rem; font-size: 1rem; font-weight: 600; cursor: pointer;
+      white-space: nowrap; transition: background var(--transition), transform .1s;
+    }
+    #addBtn:hover  { background: var(--accent-h); }
+    #addBtn:active { transform: scale(.97); }
+
+    /* Row 2 */
+    .input-row-meta { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+    .meta-field { display: flex; flex-direction: column; gap: .25rem; }
+    .meta-field label {
+      font-size: .72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .meta-field input, .meta-field select {
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: .5rem .75rem; font-size: .9rem; background: var(--bg);
+      color: var(--text); outline: none; transition: border-color var(--transition);
+    }
+    .meta-field input:focus, .meta-field select:focus { border-color: var(--accent); }
+
+    /* Reminder toggle pill */
+    .reminder-toggle {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .85rem; color: var(--muted); cursor: pointer;
+      user-select: none; padding-bottom: .5rem;
+    }
+    .reminder-toggle input[type="checkbox"] { display: none; }
+    .toggle-pill {
+      width: 38px; height: 20px; background: var(--border);
+      border-radius: 99px; position: relative; transition: background var(--transition);
+      flex-shrink: 0;
+    }
+    .toggle-pill::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: transform var(--transition);
+    }
+    .reminder-toggle input:checked ~ .toggle-pill { background: var(--accent); }
+    .reminder-toggle input:checked ~ .toggle-pill::after { transform: translateX(18px); }
+
+    /* ── Permission Banner ── */
+    #permBanner {
+      display: none; background: #fef9c3; border: 1.5px solid #fde68a;
+      border-radius: var(--radius); padding: .75rem 1rem; margin-bottom: 1rem;
+      font-size: .88rem; color: #78350f; align-items: center; gap: .75rem;
+    }
+    body.dark #permBanner { background: #422006; border-color: #78350f; color: #fde68a; }
+    #permBanner.show { display: flex; }
+    #permBanner button {
+      margin-left: auto; background: var(--warn); color: #fff; border: none;
+      border-radius: 6px; padding: .3rem .75rem; cursor: pointer; font-size: .82rem;
+      white-space: nowrap;
+    }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex; gap: .5rem; margin-bottom: 1rem;
+      flex-wrap: wrap; align-items: center;
+    }
+    .filter-bar button {
+      border: 1.5px solid var(--border); background: var(--surface); color: var(--muted);
+      border-radius: 99px; padding: .35rem .9rem; font-size: .85rem;
+      cursor: pointer; transition: all var(--transition);
+    }
+    .filter-bar button.active, .filter-bar button:hover {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .filter-bar .spacer { flex: 1; }
+    #clearDone {
+      background: transparent; border: 1.5px solid var(--border); color: var(--muted);
+      border-radius: 99px; padding: .35rem .9rem; font-size: .85rem;
+      cursor: pointer; transition: all var(--transition);
+    }
+    #clearDone:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Task List ── */
+    #taskList { list-style: none; display: flex; flex-direction: column; gap: .6rem; }
+
+    /* ── Empty State ── */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: .95rem; }
+    .empty-state svg { margin-bottom: 1rem; opacity: .35; }
+
+    /* ── Task Item ── */
+    .task-item {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: .9rem 1rem;
+      display: flex; align-items: flex-start; gap: .85rem;
+      box-shadow: var(--shadow);
+      transition: transform .15s, box-shadow .15s, border-color .15s, background var(--transition);
+      animation: slideIn .2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .task-item:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+    .task-item.completed { border-color: var(--success); opacity: .7; }
+    .task-item.completed .task-text { text-decoration: line-through; color: var(--muted); }
+    .task-item.has-reminder  { border-left: 3.5px solid var(--info); }
+    .task-item.reminder-fired { border-left: 3.5px solid var(--warn); }
+
+    /* Checkbox */
+    .check-btn {
+      width: 22px; height: 22px; min-width: 22px; border-radius: 50%;
+      border: 2px solid var(--border); background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--transition); margin-top: 2px;
+    }
+    .check-btn:hover { border-color: var(--success); background: rgba(34,197,94,.1); }
+    .task-item.completed .check-btn { background: var(--success); border-color: var(--success); }
+    .check-btn svg { display: none; }
+    .task-item.completed .check-btn svg { display: block; }
+
+    /* Task body */
+    .task-body { flex: 1; min-width: 0; }
+    .task-text { font-size: .97rem; line-height: 1.4; word-break: break-word; }
+    .task-meta { display: flex; align-items: center; gap: .45rem; margin-top: .4rem; flex-wrap: wrap; }
+
+    /* Badges */
+    .badge {
+      font-size: .72rem; padding: .15rem .55rem; border-radius: 99px;
+      font-weight: 600; display: inline-flex; align-items: center; gap: .2rem;
+    }
+    .badge-date           { background: var(--accent-lt); color: var(--accent); }
+    .badge-date.overdue   { background: #fee2e2; color: var(--danger); }
+    .badge-date.today     { background: #fef9c3; color: #92400e; }
+    body.dark .badge-date.today { background: #422006; color: #fde68a; }
+    .badge-time           { background: #dbeafe; color: #1d4ed8; }
+    body.dark .badge-time { background: #1e3a5f; color: #93c5fd; }
+    .badge-reminder       { background: #dcfce7; color: #15803d; }
+    body.dark .badge-reminder { background: #14532d; color: #86efac; }
+    .badge-reminder.fired { background: #fef9c3; color: #92400e; }
+    body.dark .badge-reminder.fired { background: #422006; color: #fde68a; }
+
+    /* Edit mode */
+    .edit-input {
+      border: 1.5px solid var(--accent); border-radius: 6px;
+      padding: .35rem .6rem; font-size: .9rem;
+      background: var(--bg); color: var(--text); outline: none;
+    }
+    .edit-row { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; align-items: center; }
+
+    /* Action buttons */
+    .task-actions { display: flex; gap: .4rem; margin-left: auto; }
+    .icon-btn {
+      background: transparent; border: none; cursor: pointer;
+      border-radius: 6px; padding: .3rem .4rem; transition: background var(--transition);
+    }
+    .icon-btn:hover     { background: var(--bg); }
+    .icon-btn.edit-btn  { color: var(--warn); }
+    .icon-btn.del-btn   { color: var(--danger); }
+    .icon-btn.save-btn  { color: var(--success); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text); color: var(--bg); border-radius: 99px;
+      padding: .6rem 1.4rem; font-size: .9rem; font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 9999;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap; pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Responsive ── */
+    @media (max-width: 520px) {
+      .input-row-main { flex-wrap: wrap; }
+      #addBtn { width: 100%; }
+      .meta-field { flex: 1 1 calc(50% - .5rem); }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <header>
+      <div class="logo">Task<span>Flow</span></div>
+      <button id="darkToggle" aria-label="Toggle dark mode">🌙 Dark</button>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card"><div class="num" id="statTotal">0</div><div class="lbl">Total</div></div>
+      <div class="stat-card"><div class="num" id="statActive">0</div><div class="lbl">Active</div></div>
+      <div class="stat-card"><div class="num" id="statDone">0</div><div class="lbl">Done</div></div>
+      <div class="stat-card"><div class="num" id="statReminders">0</div><div class="lbl">Reminders</div></div>
+    </div>
+
+    <!-- Notification permission banner -->
+    <div id="permBanner">
+      <span>🔔 Enable browser notifications to receive task reminders.</span>
+      <button id="permBtn">Allow</button>
+    </div>
+
+    <!-- Add-task input -->
+    <div class="input-card">
+      <!-- Row 1: task text + add button -->
+      <div class="input-row-main">
+        <input type="text" id="taskInput" placeholder="What needs to be done?" maxlength="200" />
+        <button id="addBtn">+ Add</button>
+      </div>
+
+      <!-- Row 2: date, time, remind-before, reminder toggle -->
+      <div class="input-row-meta">
+        <div class="meta-field">
+          <label for="dueDate">Due date</label>
+          <input type="date" id="dueDate" />
+        </div>
+        <div class="meta-field">
+          <label for="dueTime">Time</label>
+          <input type="time" id="dueTime" />
+        </div>
+        <div class="meta-field">
+          <label for="remindBefore">Remind me</label>
+          <select id="remindBefore">
+            <option value="0">At due time</option>
+            <option value="5">5 min before</option>
+            <option value="10">10 min before</option>
+            <option value="15" selected>15 min before</option>
+            <option value="30">30 min before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </div>
+        <!-- Reminder on/off toggle -->
+        <label class="reminder-toggle" title="Enable reminder for this task">
+          <input type="checkbox" id="reminderOn" />
+          <span class="toggle-pill"></span>
+          Reminder
+        </label>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <button class="active" data-filter="all">All</button>
+      <button data-filter="active">Active</button>
+      <button data-filter="completed">Completed</button>
+      <button data-filter="reminders">🔔 Reminders</button>
+      <span class="spacer"></span>
+      <button id="clearDone">Clear completed</button>
+    </div>
+
+    <!-- Task list -->
+    <ul id="taskList"></ul>
+
+  </div>
+
+  <!-- In-app toast -->
+  <div id="toast"></div>
+
+  <!-- =====================================================
+       JAVASCRIPT
+       ===================================================== -->
+  <script>
+    // ── State ────────────────────────────────────────────
+    let tasks  = [];
+    let filter = 'all';
+
+    // Holds setTimeout handles keyed by task id, so we can cancel them
+    const reminderTimers = {};
+
+    // ── Persistence ──────────────────────────────────────
+    function save() { localStorage.setItem('taskflow_tasks', JSON.stringify(tasks)); }
+    function load() {
+      const raw = localStorage.getItem('taskflow_tasks');
+      tasks = raw ? JSON.parse(raw) : [];
+    }
+
+    // ── Utility helpers ───────────────────────────────────
+    function uid()      { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+    function todayStr() { return new Date().toISOString().split('T')[0]; }
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /** "Apr 8" from a YYYY-MM-DD string */
+    function fmtDate(d) {
+      if (!d) return '';
+      const [y,m,day] = d.split('-').map(Number);
+      return new Date(y, m-1, day).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    }
+
+    /** "3:00 PM" from a HH:MM string */
+    function fmtTime(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':').map(Number);
+      const ampm   = h >= 12 ? 'PM' : 'AM';
+      const hr     = h % 12 || 12;
+      return `${hr}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+
+    /** CSS class for the date badge based on overdue / today / future */
+    function dateBadgeClass(d) {
+      if (!d) return '';
+      if (d < todayStr()) return 'overdue';
+      if (d === todayStr()) return 'today';
+      return '';
+    }
+
+    /**
+     * Calculate the exact moment a reminder should fire.
+     * = due date+time minus the "remind before" offset in minutes.
+     */
+    function reminderFireTime(task) {
+      if (!task.reminderOn || !task.due || !task.time) return null;
+      const [y,mo,d]  = task.due.split('-').map(Number);
+      const [h,mi]    = task.time.split(':').map(Number);
+      const fireDate  = new Date(y, mo-1, d, h, mi, 0);
+      fireDate.setMinutes(fireDate.getMinutes() - (task.remindBefore || 0));
+      return fireDate;
+    }
+
+    /** Human-readable time-until string, e.g. "in 23 min" */
+    function countdown(fireDate) {
+      const diff = fireDate - Date.now();
+      if (diff <= 0) return 'now';
+      const totalSec = Math.round(diff / 1000);
+      if (totalSec < 60)  return `in ${totalSec}s`;
+      const mins = Math.round(totalSec / 60);
+      if (mins  < 60)     return `in ${mins} min`;
+      const hrs  = Math.round(mins / 60);
+      if (hrs   < 24)     return `in ${hrs} hr`;
+      const days = Math.round(hrs / 24);
+      return `in ${days} day${days > 1 ? 's' : ''}`;
+    }
+
+    // ── Notifications ─────────────────────────────────────
+
+    /** Show the permission banner if there are pending reminders and permission isn't granted */
+    function checkPermBanner() {
+      const hasPending = tasks.some(t => t.reminderOn && !t.completed && !t.reminderFired);
+      const banner     = document.getElementById('permBanner');
+      if (hasPending && Notification.permission === 'default') {
+        banner.classList.add('show');
+      } else {
+        banner.classList.remove('show');
+      }
+    }
+
+    document.getElementById('permBtn').addEventListener('click', () => {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') {
+          document.getElementById('permBanner').classList.remove('show');
+          scheduleAllReminders();
+          showToast('Notifications enabled!');
+        } else {
+          showToast('Notifications blocked. Reminders will show in-app only.');
+        }
+      });
+    });
+
+    /** Pop a browser notification and in-app toast for a task */
+    function fireNotification(task) {
+      const title = `Reminder: ${task.text}`;
+      const body  = task.due
+        ? `Due ${fmtDate(task.due)}${task.time ? ' at ' + fmtTime(task.time) : ''}`
+        : 'Your task is coming up!';
+
+      // Browser push notification (if allowed)
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+
+      // Always show in-app toast
+      showToast(`🔔 ${task.text}`);
+
+      // Mark as fired so it doesn't re-trigger on next page load
+      task.reminderFired = true;
+      save();
+      render();
+    }
+
+    /**
+     * Schedule (or re-schedule) a single reminder via setTimeout.
+     * Cancels any existing timer for this task first.
+     */
+    function scheduleReminder(task) {
+      // Clear any previous timer for this task
+      if (reminderTimers[task.id]) {
+        clearTimeout(reminderTimers[task.id]);
+        delete reminderTimers[task.id];
+      }
+
+      if (!task.reminderOn || task.completed || task.reminderFired) return;
+
+      const fireAt = reminderFireTime(task);
+      if (!fireAt) return;
+
+      const delay = fireAt - Date.now();
+      if (delay < 0) return; // due time already passed
+
+      reminderTimers[task.id] = setTimeout(() => {
+        // Look up freshest copy of the task from state
+        const t = tasks.find(t => t.id === task.id);
+        if (t && !t.completed && !t.reminderFired) fireNotification(t);
+      }, delay);
+    }
+
+    /** Schedule reminders for all tasks (called on page load) */
+    function scheduleAllReminders() { tasks.forEach(scheduleReminder); }
+
+    // ── Toast ─────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    // ── Render ────────────────────────────────────────────
+
+    function render() {
+      const list = document.getElementById('taskList');
+      list.innerHTML = '';
+
+      // Apply active filter
+      const visible = tasks.filter(t => {
+        if (filter === 'active')    return !t.completed;
+        if (filter === 'completed') return  t.completed;
+        if (filter === 'reminders') return  t.reminderOn;
+        return true;
+      });
+
+      if (visible.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <rect x="8" y="4" width="48" height="56" rx="6" fill="#6c63ff" opacity=".15"/>
+              <rect x="18" y="20" width="28" height="3" rx="1.5" fill="#6c63ff" opacity=".4"/>
+              <rect x="18" y="28" width="20" height="3" rx="1.5" fill="#6c63ff" opacity=".3"/>
+              <rect x="18" y="36" width="24" height="3" rx="1.5" fill="#6c63ff" opacity=".3"/>
+            </svg>
+            <p>${
+              filter === 'completed' ? 'No completed tasks yet.' :
+              filter === 'active'    ? 'No active tasks — nice work!' :
+              filter === 'reminders' ? 'No tasks with reminders set.' :
+              'No tasks yet. Add one above!'
+            }</p>
+          </div>`;
+      } else {
+        visible.forEach(t => list.appendChild(createTaskEl(t)));
+      }
+
+      updateStats();
+      checkPermBanner();
+    }
+
+    /** Build the <li> DOM node for one task */
+    function createTaskEl(task) {
+      const li     = document.createElement('li');
+      const fireAt = reminderFireTime(task);
+
+      // Compose class list
+      let cls = 'task-item';
+      if (task.completed) cls += ' completed';
+      if (task.reminderOn && !task.completed) {
+        cls += task.reminderFired ? ' reminder-fired' : ' has-reminder';
+      }
+      li.className   = cls;
+      li.dataset.id  = task.id;
+
+      // Date badge
+      const dClass   = dateBadgeClass(task.due);
+      const dateBadge = task.due
+        ? `<span class="badge badge-date ${dClass}">${dClass==='overdue'?'⚠':'🗓'} ${fmtDate(task.due)}</span>`
+        : '';
+
+      // Time badge
+      const timeBadge = task.time
+        ? `<span class="badge badge-time">🕐 ${fmtTime(task.time)}</span>`
+        : '';
+
+      // Reminder badge — shows countdown or "Sent"
+      let reminderBadge = '';
+      if (task.reminderOn) {
+        if (task.reminderFired) {
+          reminderBadge = `<span class="badge badge-reminder fired">🔔 Sent</span>`;
+        } else if (fireAt) {
+          reminderBadge = `<span class="badge badge-reminder">🔔 ${countdown(fireAt)}</span>`;
+        } else {
+          reminderBadge = `<span class="badge badge-reminder">🔔 Set</span>`;
+        }
+      }
+
+      li.innerHTML = `
+        <!-- Complete toggle -->
+        <button class="check-btn" title="Toggle complete" aria-label="Toggle complete">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- Body -->
+        <div class="task-body">
+          <div class="task-text">${escHtml(task.text)}</div>
+          <div class="task-meta">${dateBadge}${timeBadge}${reminderBadge}</div>
+        </div>
+
+        <!-- Actions -->
+        <div class="task-actions">
+          <button class="icon-btn edit-btn" title="Edit" aria-label="Edit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="icon-btn del-btn" title="Delete" aria-label="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>`;
+
+      li.querySelector('.check-btn').addEventListener('click', () => toggleTask(task.id));
+      li.querySelector('.del-btn').addEventListener('click',   () => deleteTask(task.id));
+      li.querySelector('.edit-btn').addEventListener('click',  () => startEdit(task.id, li));
+
+      return li;
+    }
+
+    /** Refresh the four stat counters */
+    function updateStats() {
+      const done      = tasks.filter(t =>  t.completed).length;
+      const active    = tasks.filter(t => !t.completed).length;
+      const reminders = tasks.filter(t =>  t.reminderOn && !t.completed && !t.reminderFired).length;
+      document.getElementById('statTotal').textContent     = tasks.length;
+      document.getElementById('statActive').textContent    = active;
+      document.getElementById('statDone').textContent      = done;
+      document.getElementById('statReminders').textContent = reminders;
+    }
+
+    // ── Task Actions ──────────────────────────────────────
+
+    function addTask() {
+      const input = document.getElementById('taskInput');
+      const text  = input.value.trim();
+      if (!text) {
+        input.focus();
+        input.style.borderColor = 'var(--danger)';
+        setTimeout(() => input.style.borderColor = '', 900);
+        return;
+      }
+
+      const due          = document.getElementById('dueDate').value;
+      const time         = document.getElementById('dueTime').value;
+      const remindBefore = parseInt(document.getElementById('remindBefore').value, 10);
+      const reminderOn   = document.getElementById('reminderOn').checked;
+
+      // Require both date AND time when a reminder is enabled
+      if (reminderOn && (!due || !time)) {
+        showToast('⚠ Please set both a date and a time to enable the reminder.');
+        return;
+      }
+
+      const task = {
+        id: uid(), text, completed: false,
+        due, time, remindBefore, reminderOn, reminderFired: false
+      };
+
+      tasks.unshift(task);
+      save();
+      scheduleReminder(task);
+
+      // Clear inputs
+      input.value = '';
+      document.getElementById('dueDate').value = '';
+      document.getElementById('dueTime').value = '';
+      document.getElementById('reminderOn').checked = false;
+
+      render();
+    }
+
+    function toggleTask(id) {
+      const t = tasks.find(t => t.id === id);
+      if (!t) return;
+      t.completed = !t.completed;
+      // Cancel the timer when a task is marked done
+      if (t.completed && reminderTimers[id]) {
+        clearTimeout(reminderTimers[id]);
+        delete reminderTimers[id];
+      }
+      save(); render();
+    }
+
+    function deleteTask(id) {
+      if (reminderTimers[id]) { clearTimeout(reminderTimers[id]); delete reminderTimers[id]; }
+      tasks = tasks.filter(t => t.id !== id);
+      save(); render();
+    }
+
+    function clearCompleted() {
+      tasks.filter(t => t.completed).forEach(t => {
+        if (reminderTimers[t.id]) { clearTimeout(reminderTimers[t.id]); delete reminderTimers[t.id]; }
+      });
+      tasks = tasks.filter(t => !t.completed);
+      save(); render();
+    }
+
+    // ── Inline Edit ───────────────────────────────────────
+
+    function startEdit(id, li) {
+      const task    = tasks.find(t => t.id === id);
+      const body    = li.querySelector('.task-body');
+      const actions = li.querySelector('.task-actions');
+
+      // Replace the task display with edit controls
+      body.innerHTML = `
+        <input class="edit-input" id="et" style="width:100%;" value="${escHtml(task.text)}" maxlength="200" />
+        <div class="edit-row">
+          <input type="date" class="edit-input" id="ed"  value="${task.due  || ''}" />
+          <input type="time" class="edit-input" id="eti" value="${task.time || ''}" />
+          <select class="edit-input" id="erb">
+            <option value="0"    ${(task.remindBefore||0)===0    ?'selected':''}>At due time</option>
+            <option value="5"    ${task.remindBefore===5    ?'selected':''}>5 min before</option>
+            <option value="10"   ${task.remindBefore===10   ?'selected':''}>10 min before</option>
+            <option value="15"   ${task.remindBefore===15   ?'selected':''}>15 min before</option>
+            <option value="30"   ${task.remindBefore===30   ?'selected':''}>30 min before</option>
+            <option value="60"   ${task.remindBefore===60   ?'selected':''}>1 hr before</option>
+            <option value="1440" ${task.remindBefore===1440 ?'selected':''}>1 day before</option>
+          </select>
+          <label class="reminder-toggle" style="padding-bottom:0;">
+            <input type="checkbox" id="eron" ${task.reminderOn?'checked':''} />
+            <span class="toggle-pill"></span>
+            Reminder
+          </label>
+        </div>`;
+
+      const etEl  = body.querySelector('#et');
+      const edEl  = body.querySelector('#ed');
+      const etiEl = body.querySelector('#eti');
+      const erbEl = body.querySelector('#erb');
+      const erOn  = body.querySelector('#eron');
+
+      etEl.focus(); etEl.select();
+
+      // Replace action buttons with a single save button
+      actions.innerHTML = `
+        <button class="icon-btn save-btn" title="Save" aria-label="Save">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </button>`;
+
+      const doSave = () => saveEdit(id, etEl, edEl, etiEl, erbEl, erOn);
+      actions.querySelector('.save-btn').addEventListener('click', doSave);
+      etEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  doSave();
+        if (e.key === 'Escape') render(); // cancel edit
+      });
+    }
+
+    function saveEdit(id, textEl, dateEl, timeEl, rbEl, ronEl) {
+      const text = textEl.value.trim();
+      if (!text) return;
+
+      const t = tasks.find(t => t.id === id);
+      if (!t) return;
+
+      t.text         = text;
+      t.due          = dateEl.value;
+      t.time         = timeEl.value;
+      t.remindBefore = parseInt(rbEl.value, 10);
+      t.reminderOn   = ronEl.checked;
+
+      if (t.reminderOn && (!t.due || !t.time)) {
+        showToast('⚠ Set a date and time to enable the reminder.');
+        t.reminderOn = false;
+      }
+
+      // Reset fired flag so the new time triggers a fresh notification
+      t.reminderFired = false;
+      save();
+      scheduleReminder(t);
+      render();
+    }
+
+    // ── Event Wiring ──────────────────────────────────────
+
+    document.getElementById('addBtn').addEventListener('click', addTask);
+    document.getElementById('taskInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addTask();
+    });
+
+    document.querySelectorAll('.filter-bar [data-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        filter = btn.dataset.filter;
+        document.querySelectorAll('.filter-bar [data-filter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+      });
+    });
+
+    document.getElementById('clearDone').addEventListener('click', clearCompleted);
+
+    const darkBtn = document.getElementById('darkToggle');
+    darkBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      darkBtn.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+      localStorage.setItem('taskflow_dark', isDark ? '1' : '0');
+    });
+
+    // Refresh countdown badges every 30 seconds so they stay accurate
+    setInterval(render, 30_000);
+
+    // ── Init ──────────────────────────────────────────────
+
+    if (localStorage.getItem('taskflow_dark') === '1') {
+      document.body.classList.add('dark');
+      darkBtn.textContent = '☀️ Light';
+    }
+
+    load();
+    render();
+    scheduleAllReminders(); // re-arm any pending reminders from localStorage
+  </script>
+</body>
+</html>
